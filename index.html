@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Folder Line Counter</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background: #0b0f17;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+        padding: 30px;
+    }
+
+    .container {
+        max-width: 1000px;
+        margin: auto;
+        background: #151a24;
+        border: 1px solid #293142;
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 30px;
+    }
+
+    .subtitle {
+        color: #8d97aa;
+        margin: 10px 0 25px;
+    }
+
+    .buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    button {
+        border: none;
+        border-radius: 10px;
+        padding: 13px 20px;
+        background: #4f7cff;
+        color: white;
+        font-size: 15px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #3c68df;
+    }
+
+    .clear {
+        background: #292f3d;
+    }
+
+    .clear:hover {
+        background: #363d4d;
+    }
+
+    .folder {
+        margin-top: 20px;
+        color: #aab3c5;
+    }
+
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-top: 25px;
+    }
+
+    .stat {
+        background: #0f131c;
+        border: 1px solid #293142;
+        border-radius: 12px;
+        padding: 18px;
+    }
+
+    .label {
+        color: #858fa3;
+        font-size: 13px;
+    }
+
+    .value {
+        font-size: 27px;
+        font-weight: bold;
+        margin-top: 7px;
+    }
+
+    .status {
+        margin-top: 20px;
+        color: #aab3c5;
+    }
+
+    .progress {
+        width: 100%;
+        height: 7px;
+        background: #242a36;
+        border-radius: 10px;
+        margin-top: 12px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: #4f7cff;
+        transition: width .2s;
+    }
+
+    .files {
+        margin-top: 25px;
+        border: 1px solid #293142;
+        border-radius: 12px;
+        overflow: hidden;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .file {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 13px 16px;
+        border-bottom: 1px solid #252c38;
+    }
+
+    .file:last-child {
+        border-bottom: none;
+    }
+
+    .file-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #dce2ed;
+    }
+
+    .lines {
+        white-space: nowrap;
+        color: #6f9cff;
+        font-weight: bold;
+    }
+
+    .empty {
+        padding: 35px;
+        text-align: center;
+        color: #737d91;
+    }
+
+    @media (max-width: 700px) {
+        .stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 450px) {
+        .stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>📊 Folder Line Counter</h1>
+
+    <div class="subtitle">
+        Select a folder and automatically count lines from all readable files.
+    </div>
+
+    <div class="buttons">
+        <button id="selectBtn">
+            📁 Select Folder
+        </button>
+
+        <button class="clear" id="clearBtn">
+            Clear
+        </button>
+    </div>
+
+    <div class="folder" id="folderName">
+        No folder selected
+    </div>
+
+    <div class="stats">
+
+        <div class="stat">
+            <div class="label">
+                Files Found
+            </div>
+
+            <div class="value" id="filesFound">
+                0
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="label">
+                Text Files
+            </div>
+
+            <div class="value" id="textFiles">
+                0
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="label">
+                Total Lines
+            </div>
+
+            <div class="value" id="totalLines">
+                0
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="label">
+                Skipped Files
+            </div>
+
+            <div class="value" id="skippedFiles">
+                0
+            </div>
+        </div>
+
+    </div>
+
+    <div class="status" id="status">
+        Waiting for folder...
+    </div>
+
+    <div class="progress">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="files" id="fileList">
+        <div class="empty">
+            Select a folder to begin.
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+
+const selectBtn = document.getElementById("selectBtn");
+const clearBtn = document.getElementById("clearBtn");
+
+const folderName = document.getElementById("folderName");
+
+const filesFound = document.getElementById("filesFound");
+const textFiles = document.getElementById("textFiles");
+const totalLines = document.getElementById("totalLines");
+const skippedFiles = document.getElementById("skippedFiles");
+
+const status = document.getElementById("status");
+const progressBar = document.getElementById("progressBar");
+const fileList = document.getElementById("fileList");
+
+
+selectBtn.addEventListener("click", async () => {
+
+    try {
+
+        if (!window.showDirectoryPicker) {
+
+            alert(
+                "Your browser does not support folder selection.\n\n" +
+                "Please use Google Chrome or Microsoft Edge."
+            );
+
+            return;
+        }
+
+        const directory =
+            await window.showDirectoryPicker();
+
+        reset();
+
+        folderName.textContent =
+            "📁 " + directory.name;
+
+        status.textContent =
+            "Finding files...";
+
+        /*
+         * STEP 1
+         * Find EVERY file.
+         *
+         * No extension filtering here.
+         */
+
+        const allFiles = [];
+
+        await findAllFiles(
+            directory,
+            allFiles
+        );
+
+        filesFound.textContent =
+            allFiles.length.toLocaleString();
+
+        if (allFiles.length === 0) {
+
+            status.textContent =
+                "No files found.";
+
+            fileList.innerHTML = `
+                <div class="empty">
+                    This folder contains no files.
+                </div>
+            `;
+
+            return;
+        }
+
+        status.textContent =
+            `Found ${allFiles.length.toLocaleString()} files. Reading...`;
+
+        let readableCount = 0;
+        let skippedCount = 0;
+        let linesTotal = 0;
+
+        fileList.innerHTML = "";
+
+        /*
+         * STEP 2
+         * Read every file.
+         */
+
+        for (let i = 0; i < allFiles.length; i++) {
+
+            const item = allFiles[i];
+
+            const percent =
+                ((i + 1) / allFiles.length) * 100;
+
+            progressBar.style.width =
+                percent + "%";
+
+            status.textContent =
+                `Reading ${(i + 1).toLocaleString()} / ${allFiles.length.toLocaleString()}`;
+
+            try {
+
+                const file =
+                    await item.handle.getFile();
+
+                /*
+                 * Read the file as text.
+                 */
+
+                const buffer =
+                    await file.arrayBuffer();
+
+                /*
+                 * Detect binary files.
+                 */
+
+                if (looksBinary(buffer)) {
+
+                    skippedCount++;
+
+                    addFile(
+                        item.path,
+                        "Skipped"
+                    );
+
+                    continue;
+                }
+
+                /*
+                 * Decode the file.
+                 */
+
+                const decoder =
+                    new TextDecoder(
+                        "utf-8",
+                        {
+                            fatal: false
+                        }
+                    );
+
+                const content =
+                    decoder.decode(buffer);
+
+                /*
+                 * Count lines.
+                 */
+
+                const lines =
+                    countLines(content);
+
+                linesTotal += lines;
+                readableCount++;
+
+                addFile(
+                    item.path,
+                    lines.toLocaleString() + " lines"
+                );
+
+            } catch (error) {
+
+                skippedCount++;
+
+                addFile(
+                    item.path,
+                    "Cannot read"
+                );
+            }
+
+            /*
+             * Update numbers while scanning.
+             */
+
+            textFiles.textContent =
+                readableCount.toLocaleString();
+
+            totalLines.textContent =
+                linesTotal.toLocaleString();
+
+            skippedFiles.textContent =
+                skippedCount.toLocaleString();
+
+            /*
+             * Allow browser UI to update.
+             */
+
+            await sleep(0);
+        }
+
+        status.textContent =
+            `Finished! ${readableCount.toLocaleString()} readable files scanned.`;
+
+        progressBar.style.width = "100%";
+
+    } catch (error) {
+
+        console.error(error);
+
+        if (error.name === "AbortError") {
+
+            status.textContent =
+                "Folder selection cancelled.";
+
+        } else {
+
+            status.textContent =
+                "Something went wrong. Check the browser console.";
+        }
+    }
+
+});
+
+
+/*
+ * Recursively find EVERY file.
+ */
+async function findAllFiles(
+    directory,
+    results,
+    currentPath = ""
+) {
+
+    for await (
+        const entry of directory.values()
+    ) {
+
+        const path =
+            currentPath
+                ? currentPath + "/" + entry.name
+                : entry.name;
+
+
+        if (entry.kind === "file") {
+
+            results.push({
+
+                name: entry.name,
+
+                path: path,
+
+                handle: entry
+
+            });
+
+        }
+
+
+        else if (
+            entry.kind === "directory"
+        ) {
+
+            /*
+             * Ignore folders that usually contain
+             * huge amounts of generated files.
+             *
+             * Remove this section if you REALLY
+             * want to scan absolutely everything.
+             */
+
+            if (
+                entry.name === "node_modules" ||
+                entry.name === ".git"
+            ) {
+                continue;
+            }
+
+            await findAllFiles(
+                entry,
+                results,
+                path
+            );
+        }
+    }
+}
+
+
+/*
+ * Try to detect binary files.
+ *
+ * Images, videos, ZIP files, EXE files, etc.
+ * should not be counted as text.
+ */
+function looksBinary(buffer) {
+
+    const bytes =
+        new Uint8Array(buffer);
+
+    /*
+     * Check first 8KB.
+     */
+
+    const length =
+        Math.min(bytes.length, 8192);
+
+    let suspicious = 0;
+
+    for (let i = 0; i < length; i++) {
+
+        const byte =
+            bytes[i];
+
+        /*
+         * NULL byte is a strong
+         * indication of binary data.
+         */
+
+        if (byte === 0) {
+            return true;
+        }
+
+        /*
+         * Count unusual control characters.
+         */
+
+        if (
+            byte < 7 ||
+            (
+                byte > 14 &&
+                byte < 32 &&
+                byte !== 27 &&
+                byte !== 9 &&
+                byte !== 10 &&
+                byte !== 13
+            )
+        ) {
+            suspicious++;
+        }
+    }
+
+    /*
+     * If too many suspicious bytes,
+     * treat it as binary.
+     */
+
+    return (
+        suspicious / Math.max(length, 1)
+        > 0.10
+    );
+}
+
+
+/*
+ * Count lines.
+ */
+function countLines(text) {
+
+    if (text.length === 0) {
+        return 0;
+    }
+
+    /*
+     * Supports:
+     *
+     * Windows: \r\n
+     * Linux:   \n
+     * Mac:     \r
+     */
+
+    return text.split(/\r\n|\n|\r/).length;
+}
+
+
+/*
+ * Add file to result list.
+ */
+function addFile(
+    name,
+    result
+) {
+
+    const element =
+        document.createElement("div");
+
+    element.className = "file";
+
+    const nameElement =
+        document.createElement("div");
+
+    nameElement.className =
+        "file-name";
+
+    nameElement.textContent =
+        "📄 " + name;
+
+
+    const linesElement =
+        document.createElement("div");
+
+    linesElement.className =
+        "lines";
+
+    linesElement.textContent =
+        result;
+
+
+    element.appendChild(
+        nameElement
+    );
+
+    element.appendChild(
+        linesElement
+    );
+
+    fileList.appendChild(
+        element
+    );
+}
+
+
+/*
+ * Reset everything.
+ */
+function reset() {
+
+    filesFound.textContent = "0";
+    textFiles.textContent = "0";
+    totalLines.textContent = "0";
+    skippedFiles.textContent = "0";
+
+    progressBar.style.width = "0%";
+
+    fileList.innerHTML = `
+        <div class="empty">
+            Scanning...
+        </div>
+    `;
+}
+
+
+/*
+ * Let the browser update the screen.
+ */
+function sleep(ms) {
+
+    return new Promise(
+        resolve => setTimeout(resolve, ms)
+    );
+}
+
+
+/*
+ * Clear button.
+ */
+clearBtn.addEventListener(
+    "click",
+    () => {
+
+        folderName.textContent =
+            "No folder selected";
+
+        status.textContent =
+            "Waiting for folder...";
+
+        reset();
+
+        fileList.innerHTML = `
+            <div class="empty">
+                Select a folder to begin.
+            </div>
+        `;
+    }
+    
+);
+
+
+</script>
+
+</body>
+</html>
